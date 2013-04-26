@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "walk": "*",
-    "imagemagick": "*",
+    "imagemagick": "*"
 
   },
   "scripts": {
