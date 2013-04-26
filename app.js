@@ -19,8 +19,9 @@ app.get('/', function(req, res){
 app.get('/gallery*', function(req, res){
   var data = req.gallery;
   data.layout = false; // Express 2.5.* support, don't look for layout.ejs
+  //rederiing the html page, Album or Photo
 
-  res.render(data.type + '.ejs', data);
+  res.render(data.type, data);
 });
 
 app.listen(port);
