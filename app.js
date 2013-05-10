@@ -9,7 +9,7 @@ app.set('view engine', 'ejs');
 
 app.configure(function(){
   app.use(express.static(__dirname + '/resources'));
-  app.use(gallery.middleware({static: 'resources', directory: '/photos', rootURL: "/gallery"}));
+  app.use(gallery.middleware({static : 'resources', directory: 'photos', rootURL: "/gallery"}));
 });
 
 app.get('/', function(req, res){

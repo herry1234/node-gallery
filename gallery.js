@@ -1,6 +1,7 @@
 var fs = require('fs'),
 exif = require('./picutil.js'),
 walk = require('walk'),
+path = require('path'),
 util = require('util');
 
 var gallery = {
@@ -48,22 +49,18 @@ var gallery = {
 */
    readFiles: function(params, cb){
       var files   = [],
-      directoryPath = (this.static) ? this.static + "/" + this.directory : this.directory,
+      directoryPath = this.directory,
       me = this;
-
-
+      directoryPath = path.resolve( this.static, this.directory);
+      console.log("reading directory: " + directoryPath);
+      //var walker  = walk.walk(directoryPath, { followLinks: true});
       var walker  = walk.walk(directoryPath, { followLinks: false });
       //TODO: 
 
       walker.on("directories", function (root, dirStatsArray, next) {
-         // dirStatsArray is an array of `stat` objects with the additional attributes
-         // * type
-         // * error
-         // * name
-
+         //Can be comment out.
          next();
       });
-
 
 
       walker.on('file', function(root, stat, next) {
@@ -71,20 +68,11 @@ var gallery = {
             return next();
          }
 
-         // Make the reference to the root photo have no ref to this.directory
-         // 'resources/photos'
-         //console.log("dir path " + directoryPath);
-         //console.log("root " + root);
-         var rootlessRoot = root.replace(directoryPath + "/", "");
-         rootlessRoot = rootlessRoot.replace(directoryPath, "");
-         // removing the dir prefix
-
          var file = {
             type: stat.type,
             name: stat.name,
-            rootDir: rootlessRoot
+            dir: root.replace(directoryPath,""),
          };
-
          files.push(file);
          return next();
 
@@ -101,69 +89,69 @@ var gallery = {
       var albums = {
          name: this.name,
          prettyName: this.name,
-         isRoot: true,
-         path: this.directory,
          photos: [],
+         path: "",
+         hash: "",
+         isRoot: true,
          albums: []
       },
       dirHash = {};
+
       for (var i=0; i<files.length; i++){
          // Process a single file
-         //console.log("file root dir " + files[i].rootDir);
+         console.log("Building File : " + files[i].dir + path.sep + files[i].name);
          var file = files[i],
-         dirs = file.rootDir.split("/"),
+         dirs = file.dir.split(path.sep),
          dirHashKey = "",
+         pAlbum = albums,
          curAlbum = albums; // reset current album to root at each new file
+      
+         var curDir = dirs.slice(-1)[0];
+         var pdirHashKey = dirs.slice(0,dirs.length-1);
+         pdirHashKey = pdirHashKey.join("");
+         dirHashKey = dirs.join("");
+         pAlbum = searchAlbum(albums,pdirHashKey);
+         if(!pAlbum) pAlbum = albums;
+         if(curDir == "") {
+            //Root Directory, beacomes the TOP level album. 
+            curDir = "/";
+            dirHash[""] = "";
+         };
 
-         // Iterate over it's directory path, checking if we've got an album for each
-         // ""!==dirs[0] as we don't want to iterate if we have a file that is a photo at root
-         for (var j=0; j<dirs.length && dirs[0]!==""; j++){
-            var curDir = dirs[j];
-            dirHashKey += curDir;
+         if (!dirHash.hasOwnProperty(dirHashKey)){
+            console.log("coming to create dir hash " + dirHashKey);
+            // If we've never seen this album before, let's create it
+            var currentAlbumPath = dirs.join(path.sep); 
+            dirHash[dirHashKey] = true // TODO - consider binding the album to this hash, and even REDIS-ing..
 
+            var newAlbum = {
+               name: curDir,
+               prettyName: decodeURIComponent(curDir),
+               description: "",
+               hash: dirHashKey,
+               path: currentAlbumPath,
+               photos: [],
+               albums: []
+            };
 
-            if (!dirHash.hasOwnProperty(dirHashKey)){
-               console.log("coming to create dir hash " + dirHashKey);
-               // If we've never seen this album before, let's create it
-               var currentAlbumPath = dirs.slice(0, j+1).join('/'); // reconstruct the current path with the path slashes
-               dirHash[dirHashKey] = true // TODO - consider binding the album to this hash, and even REDIS-ing..
-
-               var newAlbum = {
-                  name: curDir,
-                  prettyName: decodeURIComponent(curDir),
-                  description: "",
-                  hash: dirHashKey,
-                  path: currentAlbumPath,
-                  photos: [],
-                  albums: []
-               };
-
-               curAlbum.albums.push(newAlbum);
-               curAlbum = newAlbum;
-            }else{
-               // we've seen this album, we need to drill into it
-               // search for the right album & update curAlbum
-               var curAls = curAlbum.albums;
-               for (var k=0; k<curAls.length; k++){
-                  var al = curAls[k];
-                  if (al.hash === dirHashKey){
-                     curAlbum = al;
-                     break;
-                  }
+            pAlbum.albums.push(newAlbum);
+            curAlbum = newAlbum;
+         }else{
+            // we've seen this album, we need to drill into it
+            // search for the right album & update curAlbum
+            var curAls = pAlbum.albums;
+            for (var k=0; k<curAls.length; k++){
+               var al = curAls[k];
+               if (al.hash === dirHashKey){
+                  curAlbum = al;
+                  break;
                }
             }
          }
-         path = file.rootDir + '/' + file.name
-         //console.log("path " + path);
-         if (path.charAt(0)==="/"){
-            path = path.substring(1, path.length);
-         }
+         var fullpath = path.join(this.static, this.directory, file.dir,  file.name);
          if(file.name == "info.json") {
-            //var fullPath = gallery.directory + "/" + path;
-            var fullPath = this.directory + "/" + path;
-            //fullPath = (gallery.static) ? gallery.static + "/" + fullPath: fullPath;
-            fullPath = (this.static) ? this.static + "/" + fullPath: fullPath;
-            var info = fs.readFileSync(fullPath);
+            
+            var info = fs.readFileSync(fullpath);
             try{
                info = JSON.parse(info);
             }catch(e){
@@ -185,22 +173,18 @@ var gallery = {
 
             var photo = {
                name: photoName,
-               path: path
+               //path: fullpath.replace(this.directory,"").replace(this.static,"") 
+               path: path.join(file.dir, file.name)  
             };
             // sample: 
             //       { name: '390_G', path: 'Ireland/West Coast/390_G.jpg' }
             var myself = this;
 
-            //curAlbum.photos.push(photo);
-
             // we have a photo object - let's try get it's exif data. We've
             // already pushed into curAlbum, no rush getting exif now!
             // Create a closure to give us scope to photo
             (function(photo, curAlbum){
-               var fullPath = myself.directory + "/" +  photo.path;
-               //adding static prefix if it has
-               fullPath = (myself.static) ? myself.static + "/" +  fullPath: fullPath;
-
+               var fullPath = path.join(myself.static, myself.directory, photo.path);
                exif.exif(fullPath, photo, function(err, exifPhoto){
                   // no need to do anything with our result - we've altered
                   // the photo object..
@@ -208,13 +192,15 @@ var gallery = {
                });
                exif.imConvert(fullPath,photo,function(err,out) {
                   var photopath = photo.path;
-                  photo.thumb=  photopath.substring(0, photopath.lastIndexOf('/')) + '/' + photo.thumb;
+                  photo.thumb= path.dirname(photopath) + path.sep + path.basename(photo.thumb);
                   //console.log(out);
                });
             })(photo, curAlbum);
             curAlbum.photos.push(photo);
          }
       }
+         //console.log(JSON.stringify(pAlbum,null,2));
+         //console.log(JSON.stringify(albums,null,2));
 
 
       // Function to iterate over our completed albums, calling _buildThumbnails on each
@@ -259,9 +245,7 @@ var gallery = {
 */
    init: function(params, cb){
       var me =  this,
-      directory = params.directory,
-      staticDir = params.static;
-
+      directory = params.directory;
       if (!cb || typeof cb !=="function"){
          cb = function(err){
             if (err) {
@@ -274,34 +258,19 @@ var gallery = {
 
       // Massage our static directory and directory params into our expected format
       // might be easier by regex..
-
-      //trim '/' for staticDir
-      if (staticDir && staticDir.charAt(0)==="/"){
-         staticDir = staticDir.substring(1, staticDir.length);
-      }
-      if (staticDir.charAt(staticDir.length-1)==="/"){
-         staticDir.substring(0, staticDir.length-1); // yes length-1 - .lenght is the full string remember
-      }
-      //trim '/' for dir
-      if (directory.charAt(0)==="/"){
-         directory = directory.substring(1, directory.length);
-      }
-      if (directory.charAt(directory.length-1)==="/"){
-         directory.substring(0, directory.length-1); // yes length-1 - .lenght is the full string remember
-      }
-      console.log("staticdir " + staticDir);
       console.log("directory " + directory);
       this.rootURL = params.rootURL;
       this.directory = directory;
-      this.static = staticDir;
+      this.static = params.static;
+      console.log("static" + this.static);
       this.name = params.name || this.name;
       this.filter = params.filter || this.filter;
 
       this.readFiles(null, function(err, files){
          if (err){
+            console.log("ERR" + err);
             return cb(err);
          }
-
          me.buildAlbums(files, function(err, album){
             me.album = album;
             return cb(err, album);
@@ -321,7 +290,8 @@ var gallery = {
       this.getAlbum(params, function(err, data){
          if (err){
             return cb(err);
-         }
+         };
+         
          var album = data.album;
          var photos = album.photos;
          for (var i=0; i<photos.length; i++){
@@ -344,13 +314,15 @@ var gallery = {
    getAlbum: function(params, cb){
       var album = this.album,
       albumPath = params.album;
+      console.log("album " + albumPath);
+      //console.log(JSON.stringify(album,null,2));
 
       if (!albumPath || albumPath==''){
          //return cb(null, album);
          return this.afterGettingItem(null, {type: 'album', album: album}, cb);
       }
 
-      var dirs = albumPath.split('/');
+      var dirs = albumPath.split(path.sep);
 
 
       for (var i=0; i<dirs.length; i++){
@@ -363,7 +335,9 @@ var gallery = {
             }
          }
       }
-      if (album.hash !== albumPath.replace(/\//g, "")){
+      
+      if (album.hash !== dirs.join("")){
+         console.log(dirs.join(""));
          return cb('Failed to load album ' + albumPath, null);
       }
    return this.afterGettingItem(null, {type: 'album', album: album}, cb);
@@ -399,6 +373,7 @@ var gallery = {
       data.name = this.name;
       data.directory= this.directory;
       data.rootDir = this.rootURL;
+      //console.log(JSON.stringify(data,null,2));
 
       return cb(err, data);
    },
@@ -476,8 +451,6 @@ var gallery = {
             };
 
          }
-         console.log(requestParams);
-
          var getterFunction = (image) ? gallery.getPhoto : gallery.getAlbum;
 
          getterFunction.apply(gallery, [ requestParams, function(err, data){
@@ -488,5 +461,17 @@ var gallery = {
       }
    }
 };
+   function searchAlbum(alb,hash) {
+         if(alb.hash == hash) return alb;
+         var als = alb.albums;
+         var node = undefined; 
+         for(var i = 0; i < als.length; i++ ) {
+            node = searchAlbum(als[i],hash);
+            if(node) {
+               return node;
+            }
+         }
+         return null;
+      };
 
 module.exports = gallery;

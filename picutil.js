@@ -10,9 +10,9 @@ exports.exif = function(staticPath, photo, callback){
    photo.exif = undefined;
    try {
       im.readMetadata(staticPath, function(err, metadata){
-         console.log(staticPath);
+         //console.log(staticPath);
          if (err) {
-            console.log('[exif.js] error in ' + staticPath + ': ' + JSON.stringify(error));
+            console.log('[exif.js] error in ' + staticPath + ': ' + JSON.stringify(err));
             photo.exif = false;
             return callback(null, photo);
          }else {
@@ -46,6 +46,7 @@ exports.imConvert =  function(staticPath, photo, callback){
       console.log(thumbname);
       photo.thumb = path.basename(thumbname);
       if(fs.existsSync(thumbname)) return callback(null,photo);
+      console.log("GENERATING thumb files ...");
       
       
       im.convert([staticPath, '-resize', '400x300', thumbname], function(err, stdout){
