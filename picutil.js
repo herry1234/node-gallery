@@ -47,8 +47,6 @@ exports.imConvert =  function(staticPath, photo, callback){
       photo.thumb = path.basename(thumbname);
       if(fs.existsSync(thumbname)) return callback(null,photo);
       console.log("GENERATING thumb files ...");
-      
-      
       im.convert([staticPath, '-resize', '400x300', thumbname], function(err, stdout){
          console.log(staticPath);
          if (err) {
