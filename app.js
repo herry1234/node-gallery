@@ -4,10 +4,10 @@ var gallery = require('./gallery'),
 	util = require('util'),
 	port = 3000;
 
-var app = (parseFloat(express.version) < 3.0) ? express.createServer() : express();
+var app = express();
 app.set('view engine', 'ejs');
 
-app.configure(function() {
+app.configure(function () {
 	app.use(express.static(__dirname + '/resources'));
 	app.use(gallery.middleware({
 		static: 'resources',
@@ -16,14 +16,13 @@ app.configure(function() {
 	}));
 });
 
-app.get('/', function(req, res) {
+app.get('/', function (req, res) {
 	res.redirect('/gallery');
 });
 
-app.get('/gallery*', function(req, res) {
+app.get('/gallery*', function (req, res) {
 	var data = req.gallery;
-	data.layout = false; // Express 2.5.* support, don't look for layout.ejs
-	//rederiing the html page, Album or Photo
+	data.layout = false;
 	res.render(data.type, data);
 });
 

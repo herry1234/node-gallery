@@ -4,50 +4,50 @@ var ExifImage = require('exif').ExifImage;
  * Utility function to convert exif data into something a bit more consumable
  * by a template
  */
-var exif = function(staticPath, photo, callback){
+var exif = function (staticPath, photo, callback) {
   // We don't care about errors in here - we can always return an undefined exif
   photo.exif = undefined;
 
-    try {
+  try {
     new ExifImage({
-      image : staticPath//'resources/photos/Ireland/West Coast/_MG_4174.jpg'
+      image: staticPath//'resources/photos/Ireland/West Coast/_MG_4174.jpg'
     }, function (error, data) {
 
-      if (error){
+      if (error) {
         console.log('[exif.js] error in ' + staticPath + ': ' + JSON.stringify(error));
         photo.exif = false;
         return callback(null, photo);
-      }else{
+      } else {
         var exifMap = {};
         var image = data.image,
-        exif = data.exif,
-        gps = data.gps,
-        arrays = image.concat(exif, gps);
+          exif = data.exif,
+          gps = data.gps,
+          arrays = image.concat(exif, gps);
 
-        for (var i=0; i<arrays.length; i++){
+        for (var i = 0; i < arrays.length; i++) {
           var t = arrays[i],
-          careAbout = { // what props we're interested in, and what we call them in output, rather than silly exif-ey names
-            "Make" : "Make",
-            "Model" : "Model",
-            "DateTimeOriginal" : "Time",
-            "ApertureValue" : "aperture",
-            "FocalLength" : "focalLength",
-            "ISOSpeedRatings" : "ISO",
-            "ExposureTime" : "Shutter Speed",
-            "GPSLatitude" : "Lat",
-            "GPSLongitude" : "Long",
-            "ImageDescription" : "Description"
-          };
-          if (careAbout.hasOwnProperty(t.tagName)){
+            careAbout = { // what props we're interested in, and what we call them in output, rather than silly exif-ey names
+              "Make": "Make",
+              "Model": "Model",
+              "DateTimeOriginal": "Time",
+              "ApertureValue": "aperture",
+              "FocalLength": "focalLength",
+              "ISOSpeedRatings": "ISO",
+              "ExposureTime": "Shutter Speed",
+              "GPSLatitude": "Lat",
+              "GPSLongitude": "Long",
+              "ImageDescription": "Description"
+            };
+          if (careAbout.hasOwnProperty(t.tagName)) {
             var key = careAbout[t.tagName],
-            value = t.value;
+              value = t.value;
 
-            if (key == "Shutter Speed"){
+            if (key == "Shutter Speed") {
               // Transform shutter speed to a fraction
               value = dec2frac(value);
             }
-            if (typeof value=="number"){
-              value = Math.round(value*100)/100; // no long decimals
+            if (typeof value == "number") {
+              value = Math.round(value * 100) / 100; // no long decimals
             }
             exifMap[key] = value;
           }

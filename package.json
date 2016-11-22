@@ -1,20 +1,18 @@
 {
-  "author": "Cian Clarke <cian@cianclarke.com> (http://www.cianclarke.com)",
+  "author": "Herry Wang <tech.herry@gmail.com>",
   "name": "node-gallery",
   "description": "NodeJS Photo Gallery using directory structure & exif info to output a gallery",
-  "version": "0.3.1",
-  "homepage": "http://www.github.com/cianclarke/node-gallery",
+  "version": "0.4.1",
   "repository": {
     "url": ""
   },
-  "main": "gallery.js",
+  "main": "app.js",
   "engines": {
-    "node": ">=0.6.2"
+    "node": ">=4.0.0"
   },
   "dependencies": {
     "walk": "*",
     "imagemagick": "*"
-
   },
   "scripts": {
     "test": "node test/tests.js",
